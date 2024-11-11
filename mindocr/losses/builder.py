@@ -6,6 +6,7 @@ from .rec_loss import AttentionLoss, CTCLoss, SARLoss, VisionLANLoss
 from .rec_multi_loss import MultiLoss
 from .table_master_loss import TableMasterLoss
 from .yolov8_loss import YOLOv8Loss
+from .pg_loss import PGLoss
 
 __all__ = ["build_loss"]
 
@@ -25,6 +26,7 @@ supported_losses = [
     "YOLOv8Loss",
     "MultiLoss",
     "TableMasterLoss",
+    "PGLoss",
 ]
 
 
@@ -45,6 +47,7 @@ def build_loss(name, **kwargs):
         >>> loss_func_config = {"pred_seq_len": 25, "max_label_len": 24, "batch_size": 32}
         >>> loss_fn = build_loss(loss_func_name, **loss_func_config)
         >>> loss_fn
+        loss:
         CTCLoss<>
     """
     assert name in supported_losses, f"Invalid loss name {name}, support losses are {supported_losses}"

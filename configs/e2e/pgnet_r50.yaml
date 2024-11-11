@@ -1,0 +1,143 @@
+system:
+  mode: 1 # 0 for graph mode, 1 for pynative mode in MindSpore
+  distribute: False
+  amp_level: 'O0' #默认不进行Float的转换
+  seed: 1024
+  log_interval: 20
+  val_while_train: False
+  val_start_epoch: 0 #开始验证的数据集epoch索引
+  drop_overflow_update: True #True或False分别代表什么意思
+
+model:
+  type: e2e
+  transform: null
+  backbone:
+    name: pgnet_backbone
+    pretrained: False
+  neck:
+    name: E2eFpn
+  head:
+    name: PGNetHead
+  # pretrained: ./pretrain/pgnet/best_param.ckpt
+  resume: False
+
+loss:
+  name: PGLoss
+  tcl_bs: 64
+  max_text_length: 50
+  max_text_nums: 30
+  pad_num: 36
+  
+# only used for mixed precision training
+loss_scaler:
+  type: dynamic
+  loss_scale: 512
+  scale_factor: 2
+  scale_window: 1000
+
+postprocess:
+  name: PGPostProcess
+  score_thresh: 0.5 #每个识别出的字符或单词都会有一个置信度分数，score_thresh用于过滤掉置信度低于0.5的识别结果
+  point_gather_mode: align #如何收集或处理识别出的字符的坐标点
+  character_dict_path: ./mindocr/utils/dict/ic15_dict.txt
+  valid_set: totaltext
+
+scheduler:
+  scheduler: cosine_decay
+  #min_lr: 0  #默认设置是1e-6
+  lr: 0.001
+  num_epochs: 600
+  warmup_epochs: 50
+  decay_epochs: 550
+
+optimizer:
+  opt: adam
+  beta1: 0.9 #默认值
+  beta2: 0.999 #默认值
+  weight_decay: 0.0001
+
+metric:
+  name: E2EMetric
+  mode: A  # two ways for eval, A: label from txt,  B: label from gt_mat  模式为A和B的区别
+  gt_mat_dir:  ./train_data/total_text/gt  # the dir of gt_mat  #看一下这个目录怎么生成
+  character_dict_path: ./mindocr/utils/dict/ic15_dict.txt 
+  main_indicator: f_score_e2e
+
+train:
+  #gradient_accumulation_steps: 2  没明白
+  clip_grad: False #指示是否对梯度进行裁剪
+  # clip_norm: 5.0 梯度裁剪的范数阈值,默认为1.0
+  ema: False #没明白 EMA是一种技术，用于平滑模型的权重，从而提高模型的稳定性和泛化能力
+  ckpt_save_dir: './tmp_det'
+  dataset_sink_mode: True
+  pred_cast_fp32: False
+  dataset:
+    type: PGDataset
+    dataset_root: ./train_data
+    data_dir: total_text/train
+    label_file: total_text/train/train.txt
+    sample_ratio: 1.0
+    transform_pipeline:
+      - DecodeImage:
+          img_mode: BGR
+          to_float32: False
+      - E2ELabelEncodeTrain:
+      - PGProcessTrain:
+          batch_size: 1  # same as loader: batch_size_per_card
+          use_resize: True
+          use_random_crop: False
+          min_crop_size: 24
+          min_text_size: 4
+          max_text_size: 512
+          point_gather_mode: align # two mode: align and none, align mode is better than none mode
+          max_text_length: 50 # the max length in seq
+          max_text_nums: 30 # the max seq nums in a pic
+          tcl_len: 64
+          character_dict_path: ./mindocr/utils/dict/ic15_dict.txt
+    output_columns: ['images',  'tcl_maps', 'tcl_label_maps', 'border_maps','direction_maps', 'training_masks', 'label_list', 'pos_list', 'pos_mask']
+    net_input_column_index: [0] # input indices for network forward func in output_columns
+    label_column_index: [1, 2, 3, 4, 5, 6, 7, 8] # input indices marked as label
+
+  loader:
+    shuffle: False
+    batch_size: 1 #指定了每个批次（batch）中数据的数量
+    drop_remainder: False
+    num_workers: 1 #用于数据加载的子进程数量
+
+eval:
+  ckpt_load_path: './pretrain/pgnet/pgnet_train_step1.ckpt'
+  dataset_sink_mode: True
+  dataset:
+    type: PGDataset
+    dataset_root: ./train_data
+    data_dir: total_text/test
+    label_file: total_text/test/test.txt
+    dataset: totaltext
+    sample_ratio: 1.0
+    transform_pipeline:
+      - DecodeImage:
+          img_mode: BGR
+          to_float32: False
+      - E2ELabelEncodeTest:
+          keep_invalid: True
+          lower: True
+          max_text_len: 50
+          character_dict_path: ./mindocr/utils/dict/ic15_dict.txt
+      - E2EResizeForTest:
+          max_side_len: 768
+          dataset: totaltext
+      - NormalizeImage:
+          bgr_to_rgb: False #看下这个变量有没有问题
+          is_hwc: True
+          mean: imagenet
+          std: imagenet
+      - ToCHWImage:
+    output_columns: ['image', 'shape_list', 'polys', 'texts', 'ignore_tags'] #img_id又是做什么
+    net_input_column_index: [0] # input indices for network forward func in output_columns
+    label_column_index: [2, 3, 4] # input indices marked as label
+
+  loader:
+    shuffle: True
+    batch_size: 1
+    drop_remainder: True
+    num_workers: 2

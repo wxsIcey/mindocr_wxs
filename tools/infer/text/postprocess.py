@@ -81,6 +81,19 @@ class Postprocessor(object):
         elif task == "ser":
             class_path = "mindocr/utils/dict/class_list_xfun.txt"
             postproc_cfg = dict(name="VQASerTokenLayoutLMPostProcess", class_path=class_path)
+        elif task == "e2e":
+            if algo.startswith("PG"):
+                postproc_cfg = dict(
+                    name="PGPostProcess",
+                    character_dict_path="mindocr/utils/dict/ic15_dict.txt",
+                    score_thresh=0.5,
+                    valid_set="totaltext",
+                    point_gather_mode="align",  # two mode: align and none, align mode is better than none mode
+                )
+            else:
+                raise ValueError(f"No postprocess config defined for {algo}. Please check the algorithm name.")
+            self.rescale_internally = True
+            self.round = True
 
         postproc_cfg.update(kwargs)
         self.task = task
@@ -142,3 +155,13 @@ class Postprocessor(object):
                 pred, segment_offset_ids=kwargs.get("segment_offset_ids"), ocr_infos=kwargs.get("ocr_infos")
             )
             return output
+        elif self.task == "e2e":
+            if self.rescale_internally:
+                shape_list = np.array(data["shape_list"], dtype="float32")
+                shape_list = np.expand_dims(shape_list, axis=0)
+            else:
+                shape_list = None
+            post_res = self.postprocess(pred, shape_list=shape_list)
+            
+            return post_res["points"], post_res["texts"]
+

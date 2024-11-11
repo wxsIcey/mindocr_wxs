@@ -14,6 +14,7 @@ from .rec_rare import *
 from .rec_robustscanner import *
 from .rec_svtr import *
 from .rec_visionlan import *
+from .e2e_pgnet import *
 
 __all__ = []
 __all__.extend(builder.__all__)
