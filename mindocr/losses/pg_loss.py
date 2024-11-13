@@ -120,9 +120,10 @@ class PGLoss(nn.LossBase):
         input_lengths = ms.Tensor(np.array([N] * B, dtype=np.int64), ms.int64)
         f_tcl_char_ld = log_softmax(f_tcl_char_ld)
         # 计算CTC损失，使用指定的参数
-        ctc_loss = nn.CTCLoss(blank=self.pad_num, reduction="mean", zero_infinity=False)
+        ctc_loss = nn.CTCLoss(blank=self.pad_num, reduction="none", zero_infinity=False)
         cost= ctc_loss(f_tcl_char_ld, tcl_label, input_lengths, label_t)
-        return cost
+        mean_cost = ops.reduce_mean(cost)
+        return mean_cost
 
     def construct(self, predicts, tcl_maps, tcl_label_maps, border_maps, direction_maps, training_masks, label_list, pos_list, pos_mask):
         # for all the batch_size
