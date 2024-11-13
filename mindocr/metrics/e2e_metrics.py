@@ -1,5 +1,6 @@
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import nn
+
 from mindocr.utils.e2e_metric.deteval import get_socre_A, get_socre_B, combine_results
 from mindocr.utils.e2e_utils.extract_textpoint import get_dict
 
@@ -22,8 +23,8 @@ class E2EMetric(nn.Metric):
         self.main_indicator = main_indicator
         self.clear()
         self.metric_names = [
-            "total_num_gt", #真实的字符个数
-            "total_num_det", #检测出的字符个数
+            "total_num_gt", 
+            "total_num_det",
             "global_accumulative_recall", 
             "hit_str_count", 
             "recall",
@@ -34,7 +35,7 @@ class E2EMetric(nn.Metric):
             "precision_e2e",
             "f_score_e2e",
         ]
-# preds中是多边形边界框列表和对应的字符串列表（从后处理得到），batch中是真实值'polys', 'texts', 'ignore_tags'
+
     def update(self, preds, batch, **kwargs):
         batch_numpy = []
         for item in batch:
@@ -45,9 +46,9 @@ class E2EMetric(nn.Metric):
         if self.mode == "A":
             gt_polyons_batch = batch_numpy[0]
             temp_gt_strs_batch = batch_numpy[1][0]
-            ignore_tags_batch = batch_numpy[2] #是否需要忽略该字符串
+            ignore_tags_batch = batch_numpy[2]
             gt_strs_batch = []
-            #获取真实字符串
+
             for temp_list in temp_gt_strs_batch:
                 t = ""
                 for index in temp_list:
@@ -58,19 +59,18 @@ class E2EMetric(nn.Metric):
             for pred, gt_polyons, gt_strs, ignore_tags in zip(
                 [preds], gt_polyons_batch, [gt_strs_batch], ignore_tags_batch
             ):
-                # prepare gt 真实值
+                # prepare gt
                 gt_info_list = [
                     {"points": gt_polyon, "text": gt_str, "ignore": ignore_tag}
                     for gt_polyon, gt_str, ignore_tag in zip(
                         gt_polyons, gt_strs, ignore_tags
                     )
                 ]
-                # prepare det 检测值
+                # prepare det
                 e2e_info_list = [
                     {"points": det_polyon, "texts": pred_str}
                     for det_polyon, pred_str in zip(pred["points"], pred["texts"])
                 ]
-                # result包含sigma，global_tau, global_pred_str, global_gt_str
                 result = get_socre_A(gt_info_list, e2e_info_list)
                 self.results.append(result)
         else:
@@ -88,4 +88,4 @@ class E2EMetric(nn.Metric):
         return metrics
 
     def clear(self):
-        self.results = []  # clear results
+        self.results = []

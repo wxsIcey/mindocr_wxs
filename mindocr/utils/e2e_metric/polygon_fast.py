@@ -1,19 +1,6 @@
 import numpy as np
 from shapely.geometry import Polygon
 
-"""
-:param det_x: [1, N] Xs of detection's vertices
-:param det_y: [1, N] Ys of detection's vertices
-:param gt_x: [1, N] Xs of groundtruth's vertices
-:param gt_y: [1, N] Ys of groundtruth's vertices
-
-##############
-All the calculation of 'AREA' in this script is handled by:
-1) First generating a binary mask with the polygon area filled up with 1's
-2) Summing up all the 1's
-"""
-
-
 def area(x, y):
     polygon = Polygon(np.stack([x, y], axis=1))
     return float(polygon.area)

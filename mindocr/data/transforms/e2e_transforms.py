@@ -3,8 +3,6 @@ from typing import List
 
 import cv2
 import numpy as np
-import mindspore as ms
-import mindspore.ops as ops
 
 from .rec_transforms import RecCTCLabelEncode
 
@@ -12,19 +10,9 @@ __all__ = ["E2ELabelEncodeTest", "E2EResizeForTest"]
 
 
 class E2ELabelEncodeTest(RecCTCLabelEncode):
-    """支持不定长奇数点polygon
-    need key:
-        label
-        (img_path)
-
-    add key:
-        polys
-        texts
-        ignore_tags
-    """
     def __init__(self, keep_invalid: bool = True, special_id: int = -1, **kwargs):
-        self.keep_invalid = keep_invalid  # 是否保留模型无法处理的特殊字符
-        self.special_id = special_id  # 代表特殊字符
+        self.keep_invalid = keep_invalid
+        self.special_id = special_id
         super().__init__(**kwargs)
 
     def expand_points(self, boxes: list) -> list:
@@ -32,7 +20,7 @@ class E2ELabelEncodeTest(RecCTCLabelEncode):
             return boxes
 
         max_points_num = max(len(b) for b in boxes)
-        ex_boxes = [b + [b[-1]] * (max_points_num - len(b)) for b in boxes]  # NOTE 允许奇数
+        ex_boxes = [b + [b[-1]] * (max_points_num - len(b)) for b in boxes]
         return ex_boxes
 
     def encode(self, text: str) -> List[int]:
@@ -47,7 +35,7 @@ class E2ELabelEncodeTest(RecCTCLabelEncode):
         for char in text:
             if char in self.dict:
                 code.append(self.dict[char])
-            elif self.keep_invalid:  # NOTE 这很坑，totaltext存在特殊字符，metric用mode_b则不排除它们，但pgnet默认词表没有它们
+            elif self.keep_invalid:
                 code.append(self.special_id)
 
         if len(code) == 0:
@@ -72,7 +60,7 @@ class E2ELabelEncodeTest(RecCTCLabelEncode):
                     return None
             else:
                 code = []
-            texts.append(code + [self.num_valid_chars] * (self.max_text_len - len(code)))  # use 36 to pad
+            texts.append(code + [self.num_valid_chars] * (self.max_text_len - len(code)))
 
         polys = self.expand_points(polys)
         data["polys"] = np.array(polys, dtype=np.float32)
@@ -82,13 +70,6 @@ class E2ELabelEncodeTest(RecCTCLabelEncode):
 
 
 class E2EResizeForTest:
-    """
-    need key:
-        image
-
-    add key:
-        shape_list
-    """
     def __init__(self, max_side_len: int, dataset: str, **kwargs):
         self.max_side_len = max_side_len
         self.dataset = dataset
@@ -102,8 +83,7 @@ class E2EResizeForTest:
             if h * ratio > self.max_side_len:
                 ratio = self.max_side_len / h
         else:
-            ratio = self.max_side_len / max(h, w)  # Fix the longer side
-
+            ratio = self.max_side_len / max(h, w)
         max_stride = 128
         resize_h = int(h * ratio + max_stride - 1) // max_stride * max_stride
         resize_w = int(w * ratio + max_stride - 1) // max_stride * max_stride

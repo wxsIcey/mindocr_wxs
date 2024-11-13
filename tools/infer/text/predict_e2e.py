@@ -3,16 +3,15 @@ import os
 import cv2
 import numpy as np
 
-from config import parse_args
-from postprocess import Postprocessor
-from preprocess import Preprocessor
-from utils import get_ckpt_file, get_image_paths, draw_e2e_res
-
 import mindspore as ms
 from mindspore import ops
 
 from mindocr import build_model
 from mindocr.utils.logger import set_logger
+from config import parse_args
+from postprocess import Postprocessor
+from preprocess import Preprocessor
+from utils import get_ckpt_file, get_image_paths, draw_e2e_res
 
 # map algorithm name to model name (which can be checked by `mindocr.list_models()`)
 # NOTE: Modify it to add new model for inference.
@@ -73,7 +72,6 @@ class TextEnd2End(object):
             points[pno, 1] = int(min(max(points[pno, 1], 0), img_height - 1))
         return points
 
-    
     def filter_tag_det_res_only_clip(self, dt_boxes, image_shape):
         img_height, img_width = image_shape[0:2]
         dt_boxes_new = []

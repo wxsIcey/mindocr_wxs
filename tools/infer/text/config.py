@@ -21,7 +21,6 @@ def create_parser():
     parser = argparse.ArgumentParser(description="Inference Config Args")
     # params for prediction engine
     parser.add_argument("--mode", type=int, default=0, help="0 for graph mode, 1 for pynative mode ")  # added
-
     parser.add_argument("--det_model_config", type=str, help="path to det model yaml config")  # added
     parser.add_argument("--rec_model_config", type=str, help="path to rec model yaml config")  # added
     parser.add_argument("--e2e_model_config", type=str, help="path to rec model yaml config")  # added

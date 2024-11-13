@@ -2,10 +2,11 @@ import math
 import cv2
 import numpy as np
 from skimage.morphology._skeletonize import thin
-import mindspore as ms
+
 import mindspore.ops as ops
 
 __all__ = ["E2ELabelEncodeTrain", "PGProcessTrain"]
+
 
 class E2ELabelEncodeTrain(object):
     def __init__(self, **kwargs):
@@ -68,7 +69,6 @@ class PGProcessTrain(object):
         self.img_id = 0
         self.cast = ops.Cast()
 
-    # 返回字符列表
     def get_dict(self, character_dict_path):
         character_str = ""
         with open(character_dict_path, "rb") as fin:
@@ -80,11 +80,6 @@ class PGProcessTrain(object):
         return dict_character
 
     def sort_with_direction(self, pos_list, f_direction):
-        """
-        f_direction: h x w x 2
-        pos_list: [[y, x], [y, x], [y, x] ...]
-        """
-        # 根据一组点的位置（pos_list）和对应的方向向量（point_direction）来对它们进行排序。排序的依据是这些点在其平均方向向量上的投影长度
         def sort_part_with_direction(pos_list, point_direction):
             pos_list = np.array(pos_list).reshape(-1, 2)
             point_direction = np.array(point_direction).reshape(-1, 2)
@@ -119,11 +114,6 @@ class PGProcessTrain(object):
         return sorted_point, np.array(sorted_direction)
 
     def sort_and_expand_with_direction_v2(self, pos_list, f_direction, binary_tcl_map):
-        """
-        f_direction: h x w x 2
-        pos_list: [[y, x], [y, x], [y, x] ...]
-        binary_tcl_map: h x w
-        """
         h, w, _ = f_direction.shape
         sorted_list, point_direction = self.sort_with_direction(pos_list, f_direction)
 
@@ -176,7 +166,6 @@ class PGProcessTrain(object):
         all_list = left_list[::-1] + sorted_list + right_list
         return all_list
 
-    # 计算四边形的面积
     def quad_area(self, poly):
         """
         compute area of a polygon
@@ -191,16 +180,12 @@ class PGProcessTrain(object):
         ]
         return np.sum(edge) / 2.0
 
-    # 从给定四边形poly中生成一个面积最小的四边形（外接矩形）
     def gen_quad_from_poly(self, poly):
-        """
-        Generate min area quad from poly.
-        """
         point_num = poly.shape[0]
         min_area_quad = np.zeros((4, 2), dtype=np.float32)
         rect = cv2.minAreaRect(
             poly.astype(np.int32)
-        )  # (center (x,y), (width, height), angle of rotation)
+        )
         box = np.array(cv2.boxPoints(rect))
 
         first_point_idx = 0
@@ -221,13 +206,6 @@ class PGProcessTrain(object):
         return min_area_quad
 
     def check_and_validate_polys(self, polys, tags, im_size):
-        """
-        check so that the text poly is in the same direction,
-        and also filter some invalid polygons
-        :param polys:
-        :param tags:
-        :return:
-        """
         (h, w) = im_size
         if polys.shape[0] == 0:
             return polys, np.array([]), np.array([])
@@ -266,19 +244,9 @@ class PGProcessTrain(object):
             hv_tags.append(hv_tag)
         return np.array(validated_polys), np.array(validated_tags), np.array(hv_tags)
 
-    # 从输入图像 im 中随机裁剪出一个区域，同时确保该区域不包含跨越文本边界的多边形
     def crop_area(
         self, im, polys, tags, hv_tags, txts, crop_background=False, max_tries=25
     ):
-        """
-        make random crop from the input image
-        :param im:
-        :param polys:  [b,4,2]
-        :param tags:
-        :param crop_background:
-        :param max_tries: 50 -> 25
-        :return:
-        """
         h, w, _ = im.shape
         pad_h = h // 10
         pad_w = w // 10
@@ -360,9 +328,6 @@ class PGProcessTrain(object):
         img_id=0,
         reference_height=3,
     ):
-        """
-        Find the center point of poly as key_points, then fit and gather.
-        """
         key_point_xys = []
         point_num = poly.shape[0]
         for idx in range(point_num // 2):
@@ -385,8 +350,8 @@ class PGProcessTrain(object):
         proj_unit_vec = (right_center_pt - left_center_pt) / (
             np.linalg.norm(right_center_pt - left_center_pt) + 1e-6
         )
-        proj_unit_vec_tile = np.tile(proj_unit_vec, (xy_text.shape[0], 1))  # (n, 2)
-        left_center_pt_tile = np.tile(left_center_pt, (xy_text.shape[0], 1))  # (n, 2)
+        proj_unit_vec_tile = np.tile(proj_unit_vec, (xy_text.shape[0], 1))
+        left_center_pt_tile = np.tile(left_center_pt, (xy_text.shape[0], 1))
         xy_text_to_left_center = xy_text - left_center_pt_tile
         proj_value = np.sum(xy_text_to_left_center * proj_unit_vec_tile, axis=1)
         xy_text = xy_text[np.argsort(proj_value)]
@@ -427,9 +392,6 @@ class PGProcessTrain(object):
         img_id=0,
         reference_height=3,
     ):
-        """
-        Find the center point of poly as key_points, then fit and gather.
-        """
         det_mask = np.zeros(
             (int(max_h / self.ds_ratio), int(max_w / self.ds_ratio))
         ).astype(np.float32)
@@ -483,7 +445,7 @@ class PGProcessTrain(object):
 
         pos_info = (
             np.array(pos_list_sorted).reshape(-1, 2).astype(np.float32)
-        )  # xy-> yx
+        )
 
         point_num = len(pos_info)
         if point_num > fixed_point_num:
@@ -517,7 +479,6 @@ class PGProcessTrain(object):
         pos_m[:keep] = 1.0
         return pos_l, pos_m
 
-    # 根据给定的多边形四边形（poly_quads）和字符数量（n_char）生成一个方向图
     def generate_direction_map(self, poly_quads, n_char, direction_map):
         """ """
         width_list = []
@@ -553,7 +514,6 @@ class PGProcessTrain(object):
         return direction_map
 
     def calculate_average_height(self, poly_quads):
-        """ """
         height_list = []
         for quad in poly_quads:
             quad_h = (
@@ -792,7 +752,7 @@ class PGProcessTrain(object):
         else:
             rect = cv2.minAreaRect(
                 poly.astype(np.int32)
-            )  # (center (x,y), (width, height), angle of rotation)
+            )
             center_point = rect[0]
             box = np.array(cv2.boxPoints(rect))
 
@@ -1037,7 +997,7 @@ class PGProcessTrain(object):
         for i in range(n_poly):
             wordBB = text_polys[i]
             poly = []
-            for j in range(4):  # 16->4
+            for j in range(4):
                 sx, sy = wordBB[j][0], wordBB[j][1]
                 dx = (
                     math.cos(rot_angle) * (sx - cx)
@@ -1139,9 +1099,7 @@ class PGProcessTrain(object):
             im = im * (1.0 - np.random.rand() * 0.5)
             im = np.clip(im, 0.0, 255.0)
 
-        # Padding the im to [input_size, input_size]
         new_h, new_w, _ = im.shape
-        # 这个地方会直接return None
         if min(new_w, new_h) < input_size * 0.5:
             return None
         im_padded = np.ones((input_size, input_size, 3), dtype=np.float32)
@@ -1176,7 +1134,7 @@ class PGProcessTrain(object):
         ) = self.generate_tcl_ctc_label(
             input_size, input_size, text_polys, text_tags, text_strs, 0.25
         )
-        if len(label_list) <= 0:  # eliminate negative samples
+        if len(label_list) <= 0:
             return None
         pos_list_temp = np.zeros([64, 3])
         pos_mask_temp = np.zeros([64, 1])
@@ -1217,10 +1175,10 @@ class PGProcessTrain(object):
         tcl_maps = score_map[np.newaxis, :, :]
         tcl_label_maps = score_label_map[np.newaxis, :, :]
         border_maps = border_map.transpose((2, 0, 1))
-        direction_maps = direction_map.transpose((2, 0, 1)) #float64
+        direction_maps = direction_map.transpose((2, 0, 1))
         training_masks = training_mask[np.newaxis, :, :]
-        pos_list = np.array(pos_list, dtype=np.float32) #int32
-        pos_mask = np.array(pos_mask, dtype=np.float32) #float64
+        pos_list = np.array(pos_list, dtype=np.float32)
+        pos_mask = np.array(pos_mask, dtype=np.float32) 
         label_list = np.array(label_list, dtype=np.float32)
         data["images"] = images
         data["tcl_maps"] = tcl_maps
@@ -1228,7 +1186,7 @@ class PGProcessTrain(object):
         data["border_maps"] = border_maps
         data["direction_maps"] = direction_maps.astype(np.float32)
         data["training_masks"] = training_masks
-        data["label_list"] = label_list#float64
-        data["pos_list"] = pos_list#float64
-        data["pos_mask"] = pos_mask#float64
+        data["label_list"] = label_list
+        data["pos_list"] = pos_list
+        data["pos_mask"] = pos_mask
         return data

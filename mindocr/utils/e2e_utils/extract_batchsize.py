@@ -1,9 +1,8 @@
-import mindspore as ms
-import mindspore.ops as ops
 import numpy as np
 import copy
-from mindspore import dtype  
 
+import mindspore as ms
+import mindspore.ops as ops
 
 def org_tcl_rois(batch_size, pos_lists, pos_masks, label_lists, tcl_bs):
     """ """

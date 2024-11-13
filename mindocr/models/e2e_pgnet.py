@@ -3,6 +3,7 @@ from .base_model import BaseModel
 
 __all__ = ['E2eNet', 'pgnet_resnet50']
 
+
 class E2eNet(BaseModel):
     def __init__(self, config):
         BaseModel.__init__(self, config)

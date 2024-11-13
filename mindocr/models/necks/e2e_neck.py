@@ -1,5 +1,5 @@
 from mindspore import nn
-from ..utils import ConvNormLayer, DeConvNormLayer
+from mindocr.models.utils.resnet_cells import ConvNormLayer, DeConvNormLayer
 
 
 class E2eFpn(nn.Cell):

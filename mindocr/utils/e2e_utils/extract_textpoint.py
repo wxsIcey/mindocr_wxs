@@ -1,10 +1,7 @@
 import cv2
-
-
 import numpy as np
 from itertools import groupby
 from skimage.morphology._skeletonize import thin
-
 
 def get_dict(character_dict_path):
     character_str = ""
@@ -16,7 +13,6 @@ def get_dict(character_dict_path):
         dict_character = list(character_str)
     return dict_character
 
-
 def softmax(logits):
     """
     logits: N x d
@@ -26,7 +22,6 @@ def softmax(logits):
     exp_sum = np.sum(exp, axis=1, keepdims=True)
     dist = exp / exp_sum
     return dist
-
 
 def get_keep_pos_idxs(labels, remove_blank=None):
     """
@@ -45,18 +40,15 @@ def get_keep_pos_idxs(labels, remove_blank=None):
         duplicate_len_list.append(current_len)
     return keep_char_idx_list, keep_pos_idx_list
 
-
 def remove_blank(labels, blank=0):
     new_labels = [x for x in labels if x != blank]
     return new_labels
-
 
 def insert_blank(labels, blank=0):
     new_labels = [blank]
     for l in labels:
         new_labels += [l, blank]
     return new_labels
-
 
 def ctc_greedy_decoder(probs_seq, blank=95, keep_blank_in_idxs=True):
     """
@@ -69,7 +61,6 @@ def ctc_greedy_decoder(probs_seq, blank=95, keep_blank_in_idxs=True):
     )
     dst_str = remove_blank(dedup_str, blank=blank)
     return dst_str, keep_idx_list
-
 
 def instance_ctc_greedy_decoder(
     gather_info, logits_map, pts_num=4, point_gather_mode=None
@@ -112,7 +103,6 @@ def instance_ctc_greedy_decoder(
     keep_gather_list = [gather_info[idx] for idx in keep_idx_list]
     return dst_str, keep_gather_list
 
-
 def ctc_decoder_for_image(
     gather_info_list, logits_map, Lexicon_Table, pts_num=6, point_gather_mode=None
 ):
@@ -136,7 +126,6 @@ def ctc_decoder_for_image(
         decoder_str.append(dst_str_readable)
         decoder_xys.append(xys_list)
     return decoder_str, decoder_xys
-
 
 def sort_with_direction(pos_list, f_direction):
     """
@@ -177,7 +166,6 @@ def sort_with_direction(pos_list, f_direction):
 
     return sorted_point, np.array(sorted_direction)
 
-
 def add_id(pos_list, image_id=0):
     """
     Add id for gather feature, for inference.
@@ -186,7 +174,6 @@ def add_id(pos_list, image_id=0):
     for item in pos_list:
         new_list.append((image_id, item[0], item[1]))
     return new_list
-
 
 def sort_and_expand_with_direction(pos_list, f_direction):
     """
@@ -234,7 +221,6 @@ def sort_and_expand_with_direction(pos_list, f_direction):
 
     all_list = left_list[::-1] + sorted_list + right_list
     return all_list
-
 
 def sort_and_expand_with_direction_v2(pos_list, f_direction, binary_tcl_map):
     """
@@ -294,7 +280,6 @@ def sort_and_expand_with_direction_v2(pos_list, f_direction, binary_tcl_map):
     all_list = left_list[::-1] + sorted_list + right_list
     return all_list
 
-
 def point_pair2poly(point_pair_list):
     """
     Transfer vertical point_pairs into poly point in clockwise.
@@ -306,13 +291,11 @@ def point_pair2poly(point_pair_list):
         point_list[point_num - 1 - idx] = point_pair[1]
     return np.array(point_list).reshape(-1, 2)
 
-
 def shrink_quad_along_width(quad, begin_width_ratio=0.0, end_width_ratio=1.0):
     ratio_pair = np.array([[begin_width_ratio], [end_width_ratio]], dtype=np.float32)
     p0_1 = quad[0] + (quad[1] - quad[0]) * ratio_pair
     p3_2 = quad[3] + (quad[2] - quad[3]) * ratio_pair
     return np.array([p0_1[0], p0_1[1], p3_2[1], p3_2[0]])
-
 
 def expand_poly_along_width(poly, shrink_ratio_of_width=0.3):
     """
@@ -345,11 +328,9 @@ def expand_poly_along_width(poly, shrink_ratio_of_width=0.3):
     poly[point_num // 2] = right_quad_expand[2]
     return poly
 
-# 根据文本中心线坐标和字符串序列来恢复并调整多边形边界框，同时保留对应的字符串
 def restore_poly(
     instance_yxs_list, seq_strs, p_border, ratio_w, ratio_h, src_w, src_h, valid_set
 ):
-    #用于存储恢复的多边形边界框和保留的字符串
     poly_list = []
     keep_str_list = []
     for yx_center_line, keep_str in zip(instance_yxs_list, seq_strs):
@@ -360,7 +341,6 @@ def restore_poly(
         offset_expand = 1.0
         if valid_set == "totaltext":
             offset_expand = 1.2
-        # 计算偏移量
         point_pair_list = []
         for y, x in yx_center_line:
             offset = p_border[:, y, x].reshape(2, 2) * offset_expand
@@ -371,16 +351,12 @@ def restore_poly(
                 / np.array([ratio_w, ratio_h]).reshape(-1, 2)
             )
             point_pair_list.append(point_pair)
-        # 构建多边形，将点对列表转换为多边形
         detected_poly = point_pair2poly(point_pair_list)
-        # 沿宽度方向扩展多边形
         detected_poly = expand_poly_along_width(
             detected_poly, shrink_ratio_of_width=0.2
         )
-        # 使用np.clip函数将多边形坐标限制在原始图像的尺寸范围内
         detected_poly[:, 0] = np.clip(detected_poly[:, 0], a_min=0, a_max=src_w)
         detected_poly[:, 1] = np.clip(detected_poly[:, 1], a_min=0, a_max=src_h)
-        # 根据验证集调整多边形
         keep_str_list.append(keep_str)
         if valid_set == "partvgg":
             middle_point = len(detected_poly) // 2
@@ -391,10 +367,8 @@ def restore_poly(
         else:
             print("--> Not supported format.")
             exit(-1)
-    # 返回多边形边界框列表和保留的字符串列表
     return poly_list, keep_str_list
 
-#从给定的字符得分图、字符映射图和方向特征图中，快速生成文本实例的中心点和终点，并通过字符映射进行过滤
 def generate_pivot_list_fast(
     p_score,
     p_char_maps,
@@ -407,30 +381,30 @@ def generate_pivot_list_fast(
     return center point and end point of TCL instance; filter with the char maps;
     """
     p_score = p_score[0]
-    f_direction = f_direction.transpose(1, 2, 0) #将f_direction的方向特征图进行转置，以匹配后续处理的维度要求
-    p_tcl_map = (p_score > score_thresh) * 1.0 #使用score_thresh对p_score进行二值化，得到p_tcl_map
-    skeleton_map = thin(p_tcl_map.astype(np.uint8)) #使用thin函数对p_tcl_map进行细化处理，得到骨架图skeleton_map
-    instance_count, instance_label_map = cv2.connectedComponents( #连通分量分析
+    f_direction = f_direction.transpose(1, 2, 0)
+    p_tcl_map = (p_score > score_thresh) * 1.0
+    skeleton_map = thin(p_tcl_map.astype(np.uint8))
+    instance_count, instance_label_map = cv2.connectedComponents(
         skeleton_map.astype(np.uint8), connectivity=8
     )
 
-    # get TCL Instance 获取文本中心线
+    # get TCL Instance
     all_pos_yxs = []
     if instance_count > 0:
-        #遍历所有连通分量，对每个分量提取坐标点
+
         for instance_id in range(1, instance_count):
             pos_list = []
             ys, xs = np.where(instance_label_map == instance_id)
             pos_list = list(zip(ys, xs))
-            #至少要3个点来定义形状
+
             if len(pos_list) < 3:
                 continue
-            #根据方向特征图对坐标点进行排序和扩展
+
             pos_list_sorted = sort_and_expand_with_direction_v2(
                 pos_list, f_direction, p_tcl_map
             )
             all_pos_yxs.append(pos_list_sorted)
-    #字符解码
+
     p_char_maps = p_char_maps.transpose([1, 2, 0])
     decoded_str, keep_yxs_list = ctc_decoder_for_image(
         all_pos_yxs,
@@ -438,9 +412,8 @@ def generate_pivot_list_fast(
         Lexicon_Table=Lexicon_Table,
         point_gather_mode=point_gather_mode,
     )
-    # 解码后的字符串和保留的坐标点列表
-    return keep_yxs_list, decoded_str
 
+    return keep_yxs_list, decoded_str
 
 def extract_main_direction(pos_list, f_direction):
     """
@@ -453,7 +426,6 @@ def extract_main_direction(pos_list, f_direction):
     average_direction = np.mean(point_direction, axis=0, keepdims=True)
     average_direction = average_direction / (np.linalg.norm(average_direction) + 1e-6)
     return average_direction
-
 
 def sort_by_direction_with_image_id_deprecated(pos_list, f_direction):
     """
@@ -469,13 +441,11 @@ def sort_by_direction_with_image_id_deprecated(pos_list, f_direction):
     sorted_list = pos_list_full[np.argsort(pos_proj_leng)].tolist()
     return sorted_list
 
-
 def sort_by_direction_with_image_id(pos_list, f_direction):
     """
     f_direction: h x w x 2
     pos_list: [[y, x], [y, x], [y, x] ...]
     """
-
     def sort_part_with_direction(pos_list_full, point_direction):
         pos_list_full = np.array(pos_list_full).reshape(-1, 3)
         pos_list = pos_list_full[:, 1:]

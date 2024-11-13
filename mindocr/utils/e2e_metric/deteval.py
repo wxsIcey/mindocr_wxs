@@ -1,8 +1,9 @@
-import numpy as np
-import scipy.io as io
 import sys
 import subprocess
 import importlib.util
+import numpy as np
+import scipy.io as io
+
 from mindocr.utils.e2e_metric.polygon_fast import iod, area_of_intersection, area
 
 def check_install(module_name, install_name):
@@ -26,7 +27,6 @@ def check_install(module_name, install_name):
 
 def get_socre_A(gt_dir, pred_dict):
     allInputs = 1
-    #从 pred_dict 读取预测数据，并将其格式化为一个列表，其中每个元素都是一个包含多边形顶点和文本字符串的列表
     def input_reading_mod(pred_dict):
         """This helper reads input from txt files"""
         det = []
@@ -44,7 +44,7 @@ def get_socre_A(gt_dir, pred_dict):
             )
             det.append([point, text])
         return det
-    #从 gt_dir 读取真实标注数据，并将其格式化为一个列表，其中每个元素代表一个真实标注，包括多边形顶点和文本字符串
+
     def gt_reading_mod(gt_dict):
         """This helper reads groundtruths from mat files"""
         gt = []
@@ -72,7 +72,7 @@ def get_socre_A(gt_dir, pred_dict):
                 xx[5] = np.array(["c"], dtype="<U1")
             gt.append(xx)
         return gt
-    #根据 IoU（交并比）阈值过滤与真实标注重叠的预测结果
+
     def detection_filtering(detections, groundtruths, threshold=0.5):
         for gt_id, gt in enumerate(groundtruths):
             if (gt[5] == "#") and (gt[1].shape[1] > 1):
@@ -90,7 +90,7 @@ def get_socre_A(gt_dir, pred_dict):
 
                 detections[:] = [item for item in detections if item != []]
         return detections
-    #计算预测结果与真实标注之间的 sigma
+
     def sigma_calculation(det_x, det_y, gt_x, gt_y):
         """
         sigma = inter_area / gt_area
@@ -98,20 +98,12 @@ def get_socre_A(gt_dir, pred_dict):
         return np.round(
             (area_of_intersection(det_x, det_y, gt_x, gt_y) / area(gt_x, gt_y)), 2
         )
-    #计算预测结果与真实标注之间的 tau 指标
     def tau_calculation(det_x, det_y, gt_x, gt_y):
         if area(det_x, det_y) == 0.0:
             return 0
         return np.round(
             (area_of_intersection(det_x, det_y, gt_x, gt_y) / area(det_x, det_y)), 2
         )
-
-    ##############################Initialization###################################
-    # global_sigma = []
-    # global_tau = []
-    # global_pred_str = []
-    # global_gt_str = []
-    ###############################################################################
 
     for input_id in range(allInputs):
         if (
@@ -127,7 +119,7 @@ def get_socre_A(gt_dir, pred_dict):
             groundtruths = gt_reading_mod(gt_dir)
             detections = detection_filtering(
                 detections, groundtruths
-            )  # filters detections overlapping with DC area
+            )
             dc_id = []
             for i in range(len(groundtruths)):
                 if groundtruths[i][5] == "#":
@@ -237,13 +229,6 @@ def get_socre_B(gt_dir, img_id, pred_dict):
             (area_of_intersection(det_x, det_y, gt_x, gt_y) / area(det_x, det_y)), 2
         )
 
-    ##############################Initialization###################################
-    # global_sigma = []
-    # global_tau = []
-    # global_pred_str = []
-    # global_gt_str = []
-    ###############################################################################
-
     for input_id in range(allInputs):
         if (
             (input_id != ".DS_Store")
@@ -258,7 +243,7 @@ def get_socre_B(gt_dir, img_id, pred_dict):
             groundtruths = gt_reading_mod(gt_dir, img_id).tolist()
             detections = detection_filtering(
                 detections, groundtruths
-            )  # filters detections overlapping with DC area
+            )
             dc_id = []
             for i in range(len(groundtruths)):
                 if groundtruths[i][5] == "#":
@@ -387,7 +372,7 @@ def get_score_C(gt_label, text, pred_bboxes):
 
     detections = detection_filtering(
         detections, groundtruths
-    )  # filters detections overlapping with DC area
+    )
 
     for idx in range(len(groundtruths) - 1, -1, -1):
         # NOTE: source code use 'orin' to indicate '#', here we use 'anno',
@@ -424,7 +409,6 @@ def get_score_C(gt_label, text, pred_bboxes):
     data["global_gt_str"] = ""
     return data
 
-# all_data包含sigma，global_tau, global_pred_str, global_gt_str
 def combine_results(all_data, rec_flag=True):
     tr = 0.7
     tp = 0.6
@@ -440,7 +424,7 @@ def combine_results(all_data, rec_flag=True):
         global_tau.append(data["global_tau"])
         global_pred_str.append(data["global_pred_str"])
         global_gt_str.append(data["global_gt_str"])
-    #全局的召回率和精确率，用于跟踪整个数据集或所有批次的匹配情况
+
     global_accumulative_recall = 0
     global_accumulative_precision = 0
     total_num_gt = 0
@@ -544,7 +528,7 @@ def combine_results(all_data, rec_flag=True):
             num_non_zero_in_sigma = non_zero_in_sigma[0].shape[0]
 
             if num_non_zero_in_sigma >= k:
-                ####search for all detections that overlaps with this groundtruth
+                #search for all detections that overlaps with this groundtruth
                 qualified_tau_candidates = np.where(
                     (local_tau_table[gt_id, :] >= tp) & (det_flag[0, :] == 0)
                 )
@@ -577,7 +561,7 @@ def combine_results(all_data, rec_flag=True):
                             else:
                                 if pred_str_cur.lower() == gt_str_cur.lower():
                                     hit_str_num += 1
-                        # recg end
+
                 elif np.sum(local_sigma_table[gt_id, qualified_tau_candidates]) >= tr:
                     gt_flag[0, gt_id] = 1
                     det_flag[0, qualified_tau_candidates] = 1
@@ -676,7 +660,7 @@ def combine_results(all_data, rec_flag=True):
                                     if pred_str_cur.lower() == gt_str_cur.lower():
                                         hit_str_num += 1
                                     break
-                        # recg end
+
                 elif np.sum(local_tau_table[qualified_sigma_candidates, det_id]) >= tp:
                     det_flag[0, det_id] = 1
                     gt_flag[0, qualified_sigma_candidates] = 1
@@ -697,7 +681,6 @@ def combine_results(all_data, rec_flag=True):
                                     hit_str_num += 1
                                     break
                     # recg end
-
                     global_accumulative_recall = (
                         global_accumulative_recall
                         + num_qualified_sigma_candidates * fsc_k
@@ -731,12 +714,12 @@ def combine_results(all_data, rec_flag=True):
         total_num_gt = total_num_gt + num_gt
         total_num_det = total_num_det + num_det
 
-        local_accumulative_recall = 0 #局部的召回率和精确率，用于跟踪当前批次或数据集的匹配情况
+        local_accumulative_recall = 0
         local_accumulative_precision = 0
-        gt_flag = np.zeros((1, num_gt)) #用于标记哪些GT和检测目标是匹配的
+        gt_flag = np.zeros((1, num_gt))
         det_flag = np.zeros((1, num_det))
 
-        #######first check for one-to-one case##########
+
         (
             local_accumulative_recall,
             local_accumulative_precision,
@@ -759,7 +742,7 @@ def combine_results(all_data, rec_flag=True):
         )
 
         hit_str_count += hit_str_num
-        #######then check for one-to-many case##########
+
         (
             local_accumulative_recall,
             local_accumulative_precision,
@@ -781,7 +764,7 @@ def combine_results(all_data, rec_flag=True):
             rec_flag,
         )
         hit_str_count += hit_str_num
-        #######then check for many-to-one case##########
+
         (
             local_accumulative_recall,
             local_accumulative_precision,

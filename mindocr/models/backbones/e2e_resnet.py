@@ -1,6 +1,5 @@
-from mindspore import nn, Tensor
-import mindspore as ms
-import numpy as np
+from mindspore import nn
+
 from ._registry import register_backbone, register_backbone_class
 from ..utils import ConvNormLayer
 
@@ -81,8 +80,6 @@ class E2ePgResNet(nn.Cell):
         return nn.SequentialCell(layers)
 
     def construct(self, x):
-        # Tensor(shape=[1], dtype=String, value= ['./train_data/total_text/train/rgb/img11.jpg'])
-        #input_tensor = ops.randn((batch_size, 3, 224, 224))
         x0 = self.conv1_1(x)
         x1 = self.maxpool(x0)
         x1 = self.layer1(x1)

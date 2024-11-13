@@ -3,6 +3,7 @@ from mindocr.utils.e2e_utils.extract_textpoint import get_dict, generate_pivot_l
 
 __all__ = ["PGPostProcess"]
 
+
 class PGPostProcess(object):
     def __init__(
         self,
@@ -15,7 +16,7 @@ class PGPostProcess(object):
         self.valid_set = valid_set
         self.score_thresh = score_thresh
         self.point_gather_mode = point_gather_mode
-    #outs_dict是网络的预测结果，shape_list是真实值
+
     def __call__(self, outs_dict, shape_list, **kwargs):
         p_score = outs_dict["f_score"]
         p_border = outs_dict["f_border"]
@@ -31,7 +32,7 @@ class PGPostProcess(object):
             p_border = p_border[0]
             p_direction = p_direction[0]
             p_char = p_char[0]
-        # ratio_h和ratio_w指图像高和宽的比率
+
         src_h, src_w, ratio_h, ratio_w = shape_list[0]
         instance_yxs_list, seq_strs = generate_pivot_list_fast(
             p_score,
@@ -52,7 +53,7 @@ class PGPostProcess(object):
             self.valid_set,
         )
         data = {
-            "points": poly_list, #多边形边界框列表
-            "texts": keep_str_list, #保留的字符串列表
+            "points": poly_list,
+            "texts": keep_str_list,
         }
         return data
