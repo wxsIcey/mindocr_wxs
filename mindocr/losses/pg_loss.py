@@ -114,17 +114,17 @@ class PGLoss(nn.LossBase):
         # 将f_tcl_char_mask的维度从[N, T, C]转换为[T, N, C]，  
         # 以符合CTC损失函数的输入要求
         f_tcl_char_ld = ops.transpose(f_tcl_char_mask, (1, 0, 2))
-        log_softmax = nn.LogSoftmax()
         # 获取f_tcl_char_ld的形状，并据此计算每个输入序列的长度（这里假设所有序列长度相同为N）
         N, B, _ = f_tcl_char_ld.shape
         input_lengths = ms.Tensor(np.array([N] * B, dtype=np.int64), ms.int64)
+        log_softmax = nn.LogSoftmax()
         f_tcl_char_ld = log_softmax(f_tcl_char_ld)
         # 计算CTC损失，使用指定的参数
         ctc_loss = nn.CTCLoss(blank=self.pad_num, reduction="none", zero_infinity=False)
         cost= ctc_loss(f_tcl_char_ld, tcl_label, input_lengths, label_t)
         mean_cost = ops.reduce_mean(cost)
         return mean_cost
-
+    
     def construct(self, predicts, tcl_maps, tcl_label_maps, border_maps, direction_maps, training_masks, label_list, pos_list, pos_mask):
         # for all the batch_size
         pos_list, pos_mask, label_list, label_t = pre_process(
@@ -157,3 +157,5 @@ class PGLoss(nn.LossBase):
         #     "ctc_loss": ctc_loss,
         # }
         return loss_all
+
+
