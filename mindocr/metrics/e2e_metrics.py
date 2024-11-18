@@ -74,7 +74,7 @@ class E2EMetric(nn.Metric):
                 result = get_socre_A(gt_info_list, e2e_info_list)
                 self.results.append(result)
         else:
-            img_id = batch[5][0]
+            img_id = batch[3].asnumpy()[0]
             e2e_info_list = [
                 {"points": det_polyon, "texts": pred_str}
                 for det_polyon, pred_str in zip(preds["points"], preds["texts"])
