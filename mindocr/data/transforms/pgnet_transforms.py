@@ -1177,14 +1177,14 @@ class PGProcessTrain(object):
         border_maps = border_map.transpose((2, 0, 1))
         direction_maps = direction_map.transpose((2, 0, 1))
         training_masks = training_mask[np.newaxis, :, :]
-        pos_list = np.array(pos_list)
-        pos_mask = np.array(pos_mask) 
-        label_list = np.array(label_list)
+        pos_list = np.array(pos_list, dtype=np.float32)
+        pos_mask = np.array(pos_mask, dtype=np.float32) 
+        label_list = np.array(label_list, dtype=np.float32)
         data["images"] = images
         data["tcl_maps"] = tcl_maps
         data["tcl_label_maps"] = tcl_label_maps
         data["border_maps"] = border_maps
-        data["direction_maps"] = direction_maps
+        data["direction_maps"] = direction_maps.astype(np.float32)
         data["training_masks"] = training_masks
         data["label_list"] = label_list
         data["pos_list"] = pos_list
