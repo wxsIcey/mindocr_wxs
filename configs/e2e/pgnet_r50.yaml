@@ -17,7 +17,7 @@ model:
     name: E2eFpn
   head:
     name: PGNetHead
-  pretrained: ./pretrain/pgnet/best_param.ckpt
+  pretrained: ./pretrain/pgnet/pgnet_train_step1.ckpt
   resume: False
 
 loss:
@@ -72,7 +72,8 @@ train:
     dataset_root: ./train_data
     data_dir: total_text/train
     label_file: total_text/train/train.txt
-    sample_ratio: 1.0
+    dataset: 'totaltext'
+    sample_ratio: [1.0]
     transform_pipeline:
       - DecodeImage:
           img_mode: BGR
@@ -101,7 +102,7 @@ train:
     num_workers: 16
 
 eval:
-  ckpt_load_path:
+  ckpt_load_path: './tmp_det/best.ckpt'
   dataset_sink_mode: True
   dataset:
     type: PGDataset
