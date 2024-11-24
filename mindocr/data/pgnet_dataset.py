@@ -14,28 +14,14 @@ class PGDataset(BaseDataset):
     img_id_map = {
         "totaltext": 3,
         "icdar2015": 3,
-        "syntext150k": 0,
     }
 
-    def __init__(
-        self,
-        is_train: bool = True,
-        data_dir: Union[str, List[str]] = None,
-        label_file: Union[List, str] = None,
-        dataset: Union[str, List[str]] = None,
-        sample_ratio: Union[List, float] = 1.0,
-        need_reset: bool = True,
-        transform_pipeline: List[dict] = None,
-        output_columns: List[str] = None,
-        **kwargs,
-    ):
+    def __init__(self, is_train=True, data_dir=None, label_file=None, dataset=None, sample_ratio=1.0, need_reset=True, transform_pipeline=None, output_columns=None, **kwargs):
         super().__init__(data_dir=data_dir, label_file=label_file, output_columns=output_columns)
         self.is_train = is_train
 
-        # check args
         self.sample_ratio = [sample_ratio] * len(self.label_file) if isinstance(sample_ratio, float) else sample_ratio
 
-        # create transform
         if transform_pipeline is not None:
             global_config = dict(is_train=is_train)
             self.transforms = create_transforms(transform_pipeline, global_config)
@@ -47,18 +33,16 @@ class PGDataset(BaseDataset):
         else:
             self.need_reset = False
 
-        # load date file list
         self.dataset = [dataset] if isinstance(dataset, str) else dataset
         self.reset(output_columns)
 
-    def reset(self, output_columns: List[str] = None):
+    def reset(self, output_columns):
         self.data_list = self.load_data_list(self.label_file)
         print(f"reset dataset: {self.__class__.__name__}")
 
-        # prefetch the data keys, to fit GeneratorDataset
         for _data in self.data_list:
             try:
-                _data = _data.copy()  # WARNING: shallow copy. Do deep copy if necessary.
+                _data = _data.copy()
                 _data = run_transforms(_data, transforms=self.transforms)
                 _available_keys = list(_data.keys())
                 if _available_keys:
@@ -82,15 +66,7 @@ class PGDataset(BaseDataset):
                         "Please check the name or the completeness transformation pipeline."
                     )
 
-    def load_data_list(self, label_file: List[str], **kwargs) -> List[dict]:
-        """Load data list from label_file which contains infomation of image paths and annotations
-        Args:
-            label_file: annotation file path(s)
-        Returns:
-            data (List[dict]): A list of annotation dict, which contains keys: img_path, annot...
-        """
-
-        # parse image file path and annotation and load
+    def load_data_list(self, label_file, **kwargs):
         data_list = []
         for idx, label_fp in enumerate(label_file):
             img_dir = self.data_dir[idx]
@@ -117,11 +93,11 @@ class PGDataset(BaseDataset):
                     except Exception:
                         img_id = 0
 
-                    data = {"img_path": img_path, "label": annot_str, "img_id": img_id}  # NOTE 视数据集标注情况而改变
+                    data = {"img_path": img_path, "label": annot_str, "img_id": img_id}
                     data_list.append(data)
         return data_list
 
-    def _parse_annotation(self, data_line: str):
+    def _parse_annotation(self, data_line):
         data_line_tmp = data_line.strip()
         if "\t" in data_line_tmp:
             img_name, annot_str = data_line_tmp.split("\t")
@@ -134,9 +110,8 @@ class PGDataset(BaseDataset):
         return img_name, annot_str
 
     def __getitem__(self, index):
-        data = self.data_list[index].copy()  # WARNING: shallow copy. Do deep copy if necessary.
+        data = self.data_list[index].copy()
 
-        # perform transformation on data
         try:
             data = run_transforms(data, transforms=self.transforms)
             output_tuple = tuple(data[k] for k in self.output_columns)
@@ -144,6 +119,6 @@ class PGDataset(BaseDataset):
             if not self.is_train:
                 _logger.warning(f"Error occurred while processing the image: {self.data_list[index]['img_path']}\n {e}")
                 raise ValueError()
-            return self[random.randrange(len(self.data_list))]  # return another random sample instead
+            return self[random.randrange(len(self.data_list))]
 
         return output_tuple
