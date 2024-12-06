@@ -5,7 +5,11 @@ import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../")))
 
-
+from deploy.py_infer.src.data_process.preprocess.transforms.layout_transforms import (
+    image_norm,
+    image_transpose,
+    letterbox,
+)
 from mindocr.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from mindocr.data.transforms import create_transforms, run_transforms
 
@@ -183,6 +187,62 @@ class Preprocessor(object):
                         "is_hwc": True,
                         "mean": "imagenet",
                         "std": "imagenet",
+                    }
+                },
+                {"ToCHWImage": None},
+            ]
+        elif task == "layout":
+            if algo == "LAYOUTLMV3":
+                pipeline = [
+                    letterbox(scaleup=True, model_name="layoutlmv3"),
+                    {
+                        "NormalizeImage": {
+                            "infer_mode": True,
+                            "bgr_to_rgb": True,
+                            "is_hwc": True,
+                            "mean": [127.5, 127.5, 127.5],
+                            "std": [127.5, 127.5, 127.5],
+                        }
+                    },
+                    {"ToCHWImage": None},
+                    {"ImageStridePad": {"stride": 32}},
+                ]
+            elif algo == "YOLOv8":
+                pipeline = [
+                    letterbox(scaleup=False),
+                    image_norm(scale=255.0),
+                    image_transpose(bgr2rgb=True, hwc2chw=True),
+                ]
+            else:
+                raise ValueError(f"No preprocess config defined for {algo}. Please check the algorithm name.")
+        elif task == "table":
+            table_max_len = kwargs.get("table_max_len", 480)
+            pipeline = [
+                {"DecodeImage": {"img_mode": "RGB", "keep_ori": True, "to_float32": False}},
+                {"ResizeTableImage": {"max_len": table_max_len}},
+                {"PaddingTableImage": {"size": [table_max_len, table_max_len]}},
+                {
+                    "TableImageNorm": {
+                        "std": [0.5, 0.5, 0.5],
+                        "mean": [0.5, 0.5, 0.5],
+                        "scale": "1./255.",
+                        "order": "hwc",
+                    }
+                },
+                {"ToCHWImage": None},
+            ]
+
+        elif task == "cls":
+            pipeline = [
+                {"DecodeImage": {"img_mode": "BGR", "to_float32": False}},
+                {"Rotate90IfVertical": {"threshold": 2.0, "direction": "counterclockwise"}},
+                {"RecResizeImg": {"image_shape": [48, 192], "padding": False}},
+                {
+                    "NormalizeImage": {
+                        "bgr_to_rgb": True,
+                        "is_hwc": True,
+                        "mean": [127.0, 127.0, 127.0],
+                        "std": [127.0, 127.0, 127.0],
                     }
                 },
                 {"ToCHWImage": None},

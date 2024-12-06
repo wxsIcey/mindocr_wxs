@@ -81,6 +81,32 @@ class Postprocessor(object):
         elif task == "ser":
             class_path = "mindocr/utils/dict/class_list_xfun.txt"
             postproc_cfg = dict(name="VQASerTokenLayoutLMPostProcess", class_path=class_path)
+        elif task == "layout":
+            if algo == "LAYOUTLMV3":
+                postproc_cfg = dict(
+                    name="Layoutlmv3Postprocess",
+                    conf_thres=0.05,
+                    iou_thres=0.5,
+                    conf_free=False,
+                    multi_label=True,
+                    time_limit=100,
+                )
+            elif algo == "YOLOv8":
+                postproc_cfg = dict(name="YOLOv8Postprocess", conf_thres=0.5, iou_thres=0.7, conf_free=True)
+            else:
+                raise ValueError(f"No postprocess config defined for {algo}. Please check the algorithm name.")
+        elif task == "table":
+            table_char_dict_path = kwargs.get(
+                "table_char_dict_path", "mindocr/utils/dict/table_master_structure_dict.txt"
+            )
+            postproc_cfg = dict(
+                name="TableMasterLabelDecode",
+                character_dict_path=table_char_dict_path,
+                merge_no_span_structure=True,
+                box_shape="pad",
+            )
+        elif task == "cls":
+            postproc_cfg = dict(name="ClsPostprocess", label_list=["0", "180"])
         elif task == "e2e":
             if algo.startswith("PG"):
                 postproc_cfg = dict(
@@ -155,6 +181,15 @@ class Postprocessor(object):
                 pred, segment_offset_ids=kwargs.get("segment_offset_ids"), ocr_infos=kwargs.get("ocr_infos")
             )
             return output
+        elif self.task == "table":
+            output = self.postprocess(pred, labels=kwargs.get("labels"))
+            return output
+        elif self.task == "layout":
+            output = self.postprocess(pred, img_shape=kwargs.get("img_shape"), meta_info=kwargs.get("meta_info"))
+            return output
+        elif self.task == "cls":
+            output = self.postprocess(pred)
+            return output
         elif self.task == "e2e":
             if self.rescale_internally:
                 shape_list = np.array(data["shape_list"], dtype="float32")
@@ -164,4 +199,3 @@ class Postprocessor(object):
             post_res = self.postprocess(pred, shape_list=shape_list)
             
             return post_res["points"], post_res["texts"]
-
