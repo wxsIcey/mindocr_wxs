@@ -1,11 +1,12 @@
 import logging
 import os
 import cv2
+import json
 import numpy as np
-
+import yaml
 import mindspore as ms
 from mindspore import ops
-
+from addict import Dict
 from mindocr import build_model
 from mindocr.utils.logger import set_logger
 from config import parse_args
@@ -24,13 +25,21 @@ logger = logging.getLogger("mindocr")
 class TextEnd2End(object):
     def __init__(self, args):
         # build model for algorithm with pretrained weights or local checkpoint
+        cfg = None
+        if args.config:
+            with open(args.config, "r") as f:
+                cfg = yaml.safe_load(f)
+        self.cfg = Dict(cfg)
+
         ckpt_dir = args.e2e_model_dir
         if ckpt_dir is None:
             pretrained = True
             ckpt_load_path = None
+            pretrained_backbone = False
         else:
             ckpt_load_path = get_ckpt_file(ckpt_dir)
             pretrained = False
+            pretrained_backbone = False
         assert args.e2e_algorithm in algo_to_model_name, (
             f"Invalid e2e_algorithm {args.e2e_algorithm}. "
             f"Supported algorithms are {list(algo_to_model_name.keys())}"
@@ -96,6 +105,58 @@ class TextEnd2End(object):
         points, strs = self.postprocess(net_output, data)
         dt_boxes = self.filter_tag_det_res_only_clip(points, ori_im.shape)
         return dt_boxes, strs
+    
+# def save_e2e_res(e2e_res_all, img_paths, include_score=False, save_path="./e2e_results.txt"):
+#     lines = []
+#     for i, e2e_res in enumerate(e2e_res_all):
+#         if not include_score:
+#             img_pred = (
+#                 os.path.basename(img_paths[i])
+#                 + "\t"
+#                 + str(json.dumps(e2e_res["texts"]))
+#                 + "\t"
+#                 + str(json.dumps([x.tolist() for x in e2e_res["polys"]]))
+#                 + "\n"
+#             )
+#         else:
+#             img_pred = (
+#                 os.path.basename(img_paths[i])
+#                 + "\t"
+#                 + str(json.dumps(e2e_res["texts"]))
+#                 + "\t"
+#                 + str(json.dumps(e2e_res["scores"]))
+#                 + "\t"
+#                 + str(json.dumps([x.tolist() for x in e2e_res["polys"]]))
+#                 + "\n"
+#             )
+#         lines.append(img_pred)
+
+#     with open(save_path, "w") as f:
+#         f.writelines(lines)
+#         f.close()
+
+def save_res(boxes_all, text_scores_all, img_paths, save_path="e2e_results.txt"):
+    lines = []
+    for i, img_path in enumerate(img_paths):
+        # fn = os.path.basename(img_path).split('.')[0]
+        boxes = boxes_all[i]
+        text_scores = text_scores_all[i]
+
+        res = []  # result for current image
+        for j in range(len(boxes)):
+            res.append(
+                {
+                    "transcription": text_scores[j],
+                    "points": np.array(boxes[j]).astype(np.int32).tolist(),
+                }
+            )
+
+        img_res_str = os.path.basename(img_path) + "\t" + json.dumps(res, ensure_ascii=False) + "\n"
+        lines.append(img_res_str)
+
+    with open(save_path, "w") as f:
+        f.writelines(lines)
+        f.close()
 
 if __name__ == "__main__":
     # parse args
@@ -112,13 +173,19 @@ if __name__ == "__main__":
     text_detect = TextEnd2End(args)
 
     # run for each image
-    e2e_res_all = []
+    #e2e_res_all = []
     draw_img_save = "./inference_results"
+    boxes_all, text_scores_all = [], []
     for i, img_path in enumerate(img_paths):
         logger.info(f"\nInfering [{i+1}/{len(img_paths)}]: {img_path}")
         points, strs = text_detect(img_path)
-        src_im = draw_e2e_res(points, strs, img_path)
-        img_name_pure = os.path.split(img_path)[-1]
-        img_res_path = os.path.join(draw_img_save, "e2e_res_{}".format(img_name_pure))
-        cv2.imwrite(img_res_path, src_im)
-        logger.info("The visualized image saved in {}".format(img_res_path))
+        boxes_all.append(points)
+        text_scores_all.append(strs)
+        # e2e_res_all.append({"polys": points, "texts": strs})
+    # save_e2e_res(e2e_res_all, img_paths, save_path=os.path.join(save_dir, "e2e_results.txt"))
+    save_res(boxes_all, text_scores_all, img_paths, save_path=os.path.join(save_dir, "e2e_results.txt"))
+        # src_im = draw_e2e_res(points, strs, img_path)
+        # img_name_pure = os.path.split(img_path)[-1]
+        # img_res_path = os.path.join(draw_img_save, "e2e_res_{}".format(img_name_pure))
+        # cv2.imwrite(img_res_path, src_im)
+        # logger.info("The visualized image saved in {}".format(img_res_path))

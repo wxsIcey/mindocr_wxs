@@ -39,6 +39,7 @@ supported_postprocess = (
     + kie_re_postprocess.__all__
     + layout_postprocess.__all__
     + e2e_pg_postprocess.__all__
+    + table_postprocess.__all__
 )
 
 
