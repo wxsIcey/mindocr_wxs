@@ -228,13 +228,13 @@ def visualize(
             hide_boxes = False
             text_inside_box = True
             font_size = None
-            text_color = (0, 0, 0)
+            text_color = (255, 0, 0)
         else:
             bg = det_vis
             hide_boxes = True
             text_inside_box = False
             font_size = max(int(18 * rgb_img.shape[0] / 700), 22)
-            text_color = (0, 255, 0)
+            text_color = (255, 0, 0)
 
         text_vis = draw_texts_with_boxes(
             bg,

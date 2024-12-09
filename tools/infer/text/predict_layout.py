@@ -193,6 +193,7 @@ class LayoutAnalyzer(object):
             plt.axis("off")
             plt.imshow(cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB))
             plt.show()
+        return img_cv
 
 
 def save_layout_res(layout_res: List, img_path: str, save_dir: str):
@@ -211,13 +212,15 @@ def save_layout_res(layout_res: List, img_path: str, save_dir: str):
         f.close()
 
 
-if __name__ == "__main__":
+def predict_layout(image_path, save_dir):
     from config import parse_args
 
     # parse args
     args = parse_args()
     set_logger(name="mindocr")
-    save_dir = args.draw_img_save_dir
+
+    args.draw_img_save_dir = save_dir
+    args.image_dir = image_path
     img_paths = get_image_paths(args.image_dir)
 
     ms.set_context(mode=args.mode)
@@ -232,10 +235,13 @@ if __name__ == "__main__":
     for i, img_path in enumerate(img_paths):
         logger.info(f"Infering [{i+1}/{len(img_paths)}]: {img_path}")
 
-        layout_res = layout_analyzer(img_path, do_visualize=args.visualize_output)
+        layout_res = layout_analyzer(img_path, do_visualize=True)
         logger.info(f"Num analyze layout boxes: {len(layout_res)}")
 
         # save all results in a txt file
         save_layout_res(layout_res, img_path, save_dir=os.path.join(save_dir))
 
     logger.info(f"Done! layout analyze result saved in {save_dir}")
+
+if __name__ == "__main__":
+    predict_layout()

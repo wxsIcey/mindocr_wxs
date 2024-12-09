@@ -134,35 +134,42 @@ class TextEnd2End(object):
 #     with open(save_path, "w") as f:
 #         f.writelines(lines)
 #         f.close()
-
-def save_res(boxes_all, text_scores_all, img_paths, save_path="e2e_results.txt"):
+def save_res(boxes_all, text_scores_all, img_path, save_path):
     lines = []
-    for i, img_path in enumerate(img_paths):
         # fn = os.path.basename(img_path).split('.')[0]
-        boxes = boxes_all[i]
-        text_scores = text_scores_all[i]
+    img_name = os.path.basename(img_path).rsplit(".", 1)[0]
+    save_path = os.path.join(save_path, img_name + "_e2e_rec_result.txt")
+    boxes = boxes_all
+    text_scores = text_scores_all
 
-        res = []  # result for current image
-        for j in range(len(boxes)):
-            res.append(
-                {
-                    "transcription": text_scores[j],
-                    "points": np.array(boxes[j]).astype(np.int32).tolist(),
-                }
-            )
+    res = []  # result for current image
+    for j in range(len(boxes)):
+        res.append(
+            {
+                "transcription": text_scores[j],
+                "points": np.array(boxes[j]).astype(np.int32).tolist(),
+            }
+        )
 
-        img_res_str = os.path.basename(img_path) + "\t" + json.dumps(res, ensure_ascii=False) + "\n"
-        lines.append(img_res_str)
+    img_res_str = os.path.basename(img_path) + "\t" + json.dumps(res, ensure_ascii=False) + "\n"
+    lines.append(img_res_str)
 
     with open(save_path, "w") as f:
         f.writelines(lines)
         f.close()
 
-if __name__ == "__main__":
+def predict_rec_e2e(image_path, save_dir):
     # parse args
     args = parse_args()
     set_logger(name="mindocr")
-    save_dir = args.draw_img_save_dir
+    args.draw_img_save_dir = save_dir
+    args.image_dir = image_path
+    save_folder = args.draw_img_save_dir
+
+    save_folder, _ = os.path.splitext(save_folder)
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
     img_paths = get_image_paths(args.image_dir)
     # uncomment it to quick test the infer FPS
     # img_paths = img_paths[:15]
@@ -183,9 +190,13 @@ if __name__ == "__main__":
         text_scores_all.append(strs)
         # e2e_res_all.append({"polys": points, "texts": strs})
     # save_e2e_res(e2e_res_all, img_paths, save_path=os.path.join(save_dir, "e2e_results.txt"))
-    save_res(boxes_all, text_scores_all, img_paths, save_path=os.path.join(save_dir, "e2e_results.txt"))
-        # src_im = draw_e2e_res(points, strs, img_path)
-        # img_name_pure = os.path.split(img_path)[-1]
-        # img_res_path = os.path.join(draw_img_save, "e2e_res_{}".format(img_name_pure))
-        # cv2.imwrite(img_res_path, src_im)
+        save_res(boxes_all, text_scores_all, img_path, save_folder)
+        src_im = draw_e2e_res(points, strs, img_path)
+        img_name_pure = os.path.split(img_path)[-1]
+        img_res_path = os.path.join(draw_img_save, "text_e2e_ocr_res.png")
+        cv2.imwrite(img_res_path, src_im)
         # logger.info("The visualized image saved in {}".format(img_res_path))
+
+
+if __name__ == "__main__":
+    predict_rec_e2e()
